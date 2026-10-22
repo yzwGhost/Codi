@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Windows desktop app; work-state monitoring covers this computer's Codex Desktop only. Quota is the account-wide ChatGPT Codex allowance, so use elsewhere can also cause a decrease; it is not OpenAI API billing.
+- Use Node.js 22 for development and builds, as requested by the user.
 - Use the user's three original transparent PNGs for A (working), B (idle), and C (low quota); preserve their content and alpha.
 - Show available quota windows continuously; threshold for C is remaining `≤20%` in any displayed window.
 - Show one `-X%` animation per observed decrease of a matching quota window; first read, reset, new bucket, and reconnect establish a baseline without an animation.
