@@ -9,10 +9,11 @@ import { createActivityWatcher } from './activityWatcher';
 import { createAppStateController } from './appState';
 import { resolveCodexExecutable } from './codexExecutable';
 import { createCodexQuotaClient } from './codexQuotaClient';
-import { clampWindowBounds, windowBoundsForQuota, type Rectangle } from './windowState';
+import { createPetMenuItems } from './petMenu';
+import { parsePetSettings, type PetScale } from './petSettings';
+import { clampWindowBounds, petWindowSize, windowBoundsForQuota } from './windowState';
 import type { PetViewState } from '../shared/petState';
 
-const size = { width: 520, height: 380 };
 const appDir = join(fileURLToPath(new URL('.', import.meta.url)));
 const statePath = () => join(app.getPath('userData'), 'window-position.json');
 let window: BrowserWindow | null = null;
@@ -21,20 +22,19 @@ let quitting = false;
 let latestState: PetViewState | null = null;
 let controller: ReturnType<typeof createAppStateController> | null = null;
 let saveTimer: NodeJS.Timeout | null = null;
+let petScale: PetScale = 1;
 
-async function savedPosition(): Promise<Rectangle | null> {
+async function savedSettings(): Promise<ReturnType<typeof parsePetSettings>> {
   try {
-    const saved = JSON.parse(await readFile(statePath(), 'utf8')) as Rectangle;
-    return typeof saved.x === 'number' && typeof saved.y === 'number' ? saved : null;
+    return parsePetSettings(JSON.parse(await readFile(statePath(), 'utf8')));
   } catch {
-    return null;
+    return parsePetSettings(null);
   }
 }
 
 function savePosition(): void {
   if (!window || window.isDestroyed()) return;
-  const { x, y } = window.getBounds();
-  try { writeFileSync(statePath(), JSON.stringify({ x, y, ...size }), 'utf8'); } catch { /* Restore defaults on the next launch. */ }
+  try { writeFileSync(statePath(), JSON.stringify({ ...window.getBounds(), scale: petScale }), 'utf8'); } catch { /* Restore defaults on the next launch. */ }
 }
 
 function scheduleSavePosition(): void {
@@ -52,8 +52,19 @@ function reclampWindow(): void {
 function resizeForQuota(rowCount: number): void {
   if (!window || window.isDestroyed()) return;
   const current = window.getBounds();
-  const next = windowBoundsForQuota(current, screen.getAllDisplays().map(display => display.workArea), rowCount);
-  if (next.x !== current.x || next.y !== current.y || next.height !== current.height) window.setBounds(next);
+  const next = windowBoundsForQuota(current, screen.getAllDisplays().map(display => display.workArea), rowCount, petScale);
+  if (next.x !== current.x || next.y !== current.y || next.width !== current.width || next.height !== current.height) window.setBounds(next);
+}
+
+function sendState(): void {
+  if (window && !window.isDestroyed() && latestState) window.webContents.send('pet-state', { ...latestState, sizeScale: petScale });
+}
+
+function setPetScale(scale: PetScale): void {
+  petScale = scale;
+  resizeForQuota(latestState?.quotaUnavailable ? 0 : latestState?.windows?.length ?? 0);
+  sendState();
+  scheduleSavePosition();
 }
 
 function isDesktopRunning(): Promise<boolean> {
@@ -65,17 +76,22 @@ function isDesktopRunning(): Promise<boolean> {
 }
 
 function menuItems(): Electron.MenuItemConstructorOptions[] {
-  return [
-    { label: window?.isVisible() ? '隐藏桌宠' : '显示桌宠', click: () => window?.isVisible() ? window.hide() : window?.show() },
-    { label: '刷新额度', click: () => { void controller?.refresh(); } },
-    { label: '开机启动', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin, click: item => app.setLoginItemSettings({ openAtLogin: item.checked }) },
-    { type: 'separator' },
-    { label: '退出', click: () => { quitting = true; app.quit(); } },
-  ];
+  return createPetMenuItems(
+    { visible: window?.isVisible() ?? false, autostart: app.getLoginItemSettings().openAtLogin, scale: petScale },
+    {
+      toggleVisible: () => window?.isVisible() ? window.hide() : window?.show(),
+      refresh: () => { void controller?.refresh(); },
+      setAutostart: enabled => app.setLoginItemSettings({ openAtLogin: enabled }),
+      setScale: setPetScale,
+      quit: () => { quitting = true; app.quit(); },
+    },
+  );
 }
 
 async function createWindow(): Promise<void> {
-  const bounds = clampWindowBounds(await savedPosition(), screen.getAllDisplays().map(display => display.workArea), size);
+  const saved = await savedSettings();
+  petScale = saved.scale;
+  const bounds = clampWindowBounds(saved.position, screen.getAllDisplays().map(display => display.workArea), petWindowSize(0, petScale));
   window = new BrowserWindow({
     ...bounds,
     frame: false,
@@ -100,8 +116,7 @@ async function createWindow(): Promise<void> {
       window?.hide();
     }
   });
-  window.webContents.on('context-menu', () => Menu.buildFromTemplate(menuItems()).popup({ window: window! }));
-  window.webContents.on('did-finish-load', () => { if (latestState) window?.webContents.send('pet-state', latestState); });
+  window.webContents.on('did-finish-load', sendState);
   screen.on('display-removed', reclampWindow);
   screen.on('display-metrics-changed', reclampWindow);
   screen.on('display-added', reclampWindow);
@@ -132,7 +147,7 @@ async function startServices(): Promise<void> {
     publish: state => {
       latestState = state;
       resizeForQuota(state.quotaUnavailable ? 0 : state.windows?.length ?? 0);
-      if (window && !window.isDestroyed()) window.webContents.send('pet-state', state);
+      sendState();
     },
   });
   onSnapshot = controller.onSnapshot;
@@ -149,6 +164,15 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     ipcMain.handle('refresh-quota', () => controller?.refresh());
     ipcMain.handle('set-autostart', (_event, enabled: boolean) => app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }));
+    ipcMain.handle('show-pet-menu', event => {
+      if (window && !window.isDestroyed() && event.sender === window.webContents) Menu.buildFromTemplate(menuItems()).popup({ window });
+    });
+    ipcMain.on('move-pet', (event, dx: number, dy: number) => {
+      if (!window || window.isDestroyed() || event.sender !== window.webContents || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
+      const current = window.getBounds();
+      const next = clampWindowBounds({ ...current, x: current.x + dx, y: current.y + dy }, screen.getAllDisplays().map(display => display.workArea), current);
+      window.setPosition(next.x, next.y);
+    });
     await createWindow();
     createTray();
     await startServices();

@@ -8,6 +8,7 @@ export type PetViewState = {
   lastUpdatedAt: number | null;
   quotaUnavailable: boolean;
   activityUnavailable?: boolean;
+  sizeScale?: number;
 };
 
 export function selectPetState(windows: QuotaWindow[] | null, isWorking: boolean): PetState {

@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('petBridge', {
   },
   refreshQuota: () => ipcRenderer.invoke('refresh-quota'),
   setAutostart: (enabled: boolean) => ipcRenderer.invoke('set-autostart', enabled),
+  showPetMenu: () => ipcRenderer.invoke('show-pet-menu'),
+  movePet: (dx: number, dy: number) => ipcRenderer.send('move-pet', dx, dy),
 });
