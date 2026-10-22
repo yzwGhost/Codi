@@ -22,6 +22,7 @@ export function createCodexQuotaClient(options: CodexQuotaClientOptions) {
   let nextId = 1;
   let stopping = false;
   let hasConnected = false;
+  let reconnectBaseline = false;
   let reconnectTimer: NodeJS.Timeout | null = null;
   let connecting: Promise<void> | null = null;
   let stdoutBuffer = '';
@@ -117,6 +118,7 @@ export function createCodexQuotaClient(options: CodexQuotaClientOptions) {
     if (child) return;
     connecting = (async () => {
       stdoutBuffer = '';
+      reconnectBaseline = hasConnected;
       const processHandle = spawnProcess(options.executable, ['app-server', '--listen', 'stdio://']);
       child = processHandle;
       processHandle.stdout.on('data', handleChunk);
@@ -150,7 +152,8 @@ export function createCodexQuotaClient(options: CodexQuotaClientOptions) {
 
   async function refresh(): Promise<void> {
     const result = await request('account/rateLimits/read');
-    options.onSnapshot(result, hasConnected);
+    options.onSnapshot(result, reconnectBaseline);
+    reconnectBaseline = false;
   }
 
   return {

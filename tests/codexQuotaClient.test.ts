@@ -113,6 +113,8 @@ it('rejects a pending request on exit and reconnects without retaining stale res
   await new Promise(resolve => setTimeout(resolve, 20));
   expect(unavailable).toHaveLength(1);
   expect(reconnectFlags).toEqual([false, true]);
+  await client.refresh();
+  expect(reconnectFlags).toEqual([false, true, false]);
   await client.stop();
 });
 

@@ -1,0 +1,18 @@
+appId: com.yuzhi.codexquotapet
+productName: Codex 额度桌宠
+directories:
+  output: release
+files:
+  - dist/**/*
+  - assets/pet-idle.png
+  - package.json
+asar: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+artifactName: codex-quota-pet-${version}-setup.${ext}
