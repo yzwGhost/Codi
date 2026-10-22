@@ -18,14 +18,14 @@
 - Show available quota windows continuously; threshold for C is remaining `≤20%` in any displayed window.
 - Show one `-X%` animation per observed decrease of a matching quota window; first read, reset, new bucket, and reconnect establish a baseline without an animation.
 - Read quota through `codex app-server` `account/rateLimits/read`, with 60-second refresh and update notifications; never parse `auth.json` or log tokens.
-- Detect work from local session JSONL with `session_meta.originator === "Codex Desktop"` and task events; do not process conversation text for product behavior.
+- Detect work from the local Codex Desktop SQLite task index in read-only mode: active `thread_turns` joined to `threads.originator === "Codex Desktop"`; do not process conversation text for product behavior.
 - The window is transparent, always on top, draggable, remembers position, and supports tray hide/show, manual refresh, optional autostart, and explicit quit.
 
 ## Review Focus
 
 1. A response containing only a weekly window or null `primary`/`secondary` must show only actual windows; Task 1 tests this.
 2. Duplicate buckets, malformed percentages, and a changed `resetsAt` must not create a false `-X%`; Task 1 tests this.
-3. Split JSONL lines, an unrelated CLI session, and two simultaneous Desktop sessions must not misclassify work; Task 3 tests this.
+3. An unrelated CLI session, two simultaneous Desktop sessions, a completed turn, and an unavailable database must not misclassify work; Task 3 tests this.
 4. App Server stdout may split or combine JSON messages and can close during a request; Task 2 tests parsing, pending-request rejection, and reconnect.
 5. A saved window position can be outside the current display after unplugging a monitor; Task 5 tests clamping to visible work area.
 
@@ -38,7 +38,7 @@
 - `src/shared/petState.ts`: resolve A/B/C image state from quota and activity; define the serializable renderer state.
 - `src/main/codexExecutable.ts`: find an installed `codex.exe` without a shell or credential access.
 - `src/main/codexQuotaClient.ts`: stdio JSON-RPC handshake, quota requests, notifications, reconnect lifecycle.
-- `src/main/activityWatcher.ts`: incremental, read-only Desktop session event parsing and aggregate activity.
+- `src/main/activityWatcher.ts`: read-only Desktop task-index polling and aggregate activity.
 - `src/main/appState.ts`, `src/main/windowState.ts`: service state/scheduling and saved position validation.
 - `src/main/main.ts`, `src/main/preload.ts`: Electron window, tray, autostart, limited IPC, service orchestration.
 - `src/renderer/index.html`, `src/renderer/main.ts`, `src/renderer/style.css`: pet and quota card.
@@ -82,13 +82,12 @@
 **Files:** Create `src/main/activityWatcher.ts`, `tests/activityWatcher.test.ts`.
 
 **Interfaces:**
-- `parseSessionLine(line: string): { kind: "meta"; isDesktop: boolean } | { kind: "started" | "completed" } | null` reads only the event type and `session_meta.originator`.
-- `createActivityWatcher(options: { sessionsDir: string; onChange: (isWorking: boolean) => void; isDesktopRunning: () => Promise<boolean> }): { start(): Promise<void>; stop(): Promise<void> }` aggregates Desktop session states. It watches new and appended JSONL files, reconciles every 5 seconds, and ignores incomplete sessions older than 120 seconds on startup. `isDesktopRunning` is injectable for tests.
+- `createActivityWatcher(options: { codexHome: string; onChange: (isWorking: boolean) => void; isDesktopRunning: () => Promise<boolean> }): { start(): Promise<void>; stop(): Promise<void> }` polls `thread_history_1.sqlite` for `inProgress` turns and filters their thread IDs through `state_5.sqlite` where `originator = 'Codex Desktop'`. Open both databases read-only. `isDesktopRunning` is injectable for tests.
 
-- [ ] **Step 1: Write failing tests** for `originator: Codex Desktop`, unrelated CLI and IDE sessions, split lines on append, two concurrent Desktop sessions, completion of only one session, stale incomplete session at startup, malformed JSON, missing directory, and Codex Desktop process exit. Assert only true activity transitions reach `onChange`.
-- [ ] **Step 2: Run `npm test -- --run tests/activityWatcher.test.ts`**; expect failure because the parser and watcher do not exist.
-- [ ] **Step 3: Implement parser and watcher** with read-only incremental offsets and per-file line buffers. Inspect only recent Desktop files on startup; maintain per-session started/completed state. Use a periodic scan as a fallback for dropped Windows file-watch events. Do not expose or log task text.
-- [ ] **Step 4: Run `npm test -- --run tests/activityWatcher.test.ts`**; expect all Task 3 tests to pass. Start and finish one real Codex Desktop turn and verify the watcher reports `true` then `false`.
+- [ ] **Step 1: Write failing tests** using temporary SQLite fixtures for Desktop, unrelated CLI and IDE threads, two concurrent Desktop turns, completion of only one turn, stale incomplete turns, missing databases, and Codex Desktop process exit. Assert only true activity transitions reach `onChange`.
+- [ ] **Step 2: Run `npm test -- --run tests/activityWatcher.test.ts`**; expect failure against the JSONL watcher.
+- [ ] **Step 3: Implement read-only SQLite watcher** using Node's built-in `node:sqlite`, poll every 5 seconds, filter on originator and recent in-progress turns, and recover safely from missing or incompatible databases. Do not query or log conversation content.
+- [ ] **Step 4: Run `npm test -- --run tests/activityWatcher.test.ts`**; expect all Task 3 tests to pass. Probe the actual local SQLite task index during a live Codex Desktop turn.
 - [ ] **Step 5: Commit** the Task 3 files with `feat: detect active Codex Desktop tasks`.
 
 ### Task 4: Pet Renderer and Quota Card
