@@ -6,7 +6,7 @@
 
 为 Windows 上的 Codex Desktop 制作一个常驻桌面的 2D 桌宠。宠物旁持续显示当前 ChatGPT 账号的 Codex 使用额度。当观察到剩余额度下降时，在对应数值旁播放一次 `-X%` 飘字动画。宠物根据本机 Codex Desktop 是否正在生成或执行任务，以及额度是否偏低，在用户提供的三张图片之间切换。
 
-本项目只监控这台电脑上的 Codex Desktop，不监控 CLI、IDE 插件或云端任务。这里的“额度”是 ChatGPT 账号的 Codex 使用额度，不是 OpenAI API 的用量或余额。
+“工作中”状态只监控这台电脑上的 Codex Desktop，不监控 CLI、IDE 插件或云端任务。额度则是 ChatGPT 账号共享的 Codex 使用额度，其他设备或入口的使用也可能使它下降；它不是 OpenAI API 的用量或余额。
 
 ## 用户图片
 
