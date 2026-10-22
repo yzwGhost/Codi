@@ -30,14 +30,16 @@ export function normalizeRateLimits(input: unknown): QuotaWindow[] {
   const response = record(input);
   if (!response) return [];
   const buckets = record(response.rateLimitsByLimitId);
-  const source: unknown[] = buckets && Object.keys(buckets).length > 0
-    ? Object.values(buckets)
-    : [response.rateLimits];
+  const source: Array<[string, unknown]> = buckets && Object.keys(buckets).length > 0
+    ? Object.entries(buckets)
+    : [['', response.rateLimits]];
   const result = new Map<string, QuotaWindow>();
+  const seenPeriods = new Set<string>();
 
-  for (const rawBucket of source) {
+  for (const [bucketId, rawBucket] of source) {
     const bucket = record(rawBucket);
-    if (!bucket || typeof bucket.limitId !== 'string' || !bucket.limitId) continue;
+    if (!bucket) continue;
+    const limitId = bucketId || (typeof bucket.limitId === 'string' && bucket.limitId) || 'codex';
     for (const slot of ['primary', 'secondary'] as const) {
       const window = record(bucket[slot]);
       if (!window) continue;
@@ -45,11 +47,14 @@ export function normalizeRateLimits(input: unknown): QuotaWindow[] {
       if (typeof usedPercent !== 'number' || !Number.isFinite(usedPercent) || usedPercent < 0 || usedPercent > 100) continue;
       if (typeof windowDurationMins !== 'number' || !Number.isInteger(windowDurationMins) || windowDurationMins <= 0) continue;
       if (typeof resetsAt !== 'number' || !Number.isInteger(resetsAt) || resetsAt <= 0) continue;
-      const key = `${bucket.limitId}:${slot}:${windowDurationMins}`;
+      const period = `${limitId}:${windowDurationMins}`;
+      if (seenPeriods.has(period)) continue;
+      seenPeriods.add(period);
+      const key = `${limitId}:${slot}:${windowDurationMins}`;
       const used = roundPercent(usedPercent);
       result.set(key, {
         key,
-        limitId: bucket.limitId,
+        limitId,
         label: labelForMinutes(windowDurationMins),
         usedPercent: used,
         remainingPercent: roundPercent(100 - used),

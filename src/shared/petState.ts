@@ -7,6 +7,7 @@ export type PetViewState = {
   decreases: Array<QuotaDecrease & { eventId: number }>;
   lastUpdatedAt: number | null;
   quotaUnavailable: boolean;
+  activityUnavailable?: boolean;
 };
 
 export function selectPetState(windows: QuotaWindow[] | null, isWorking: boolean): PetState {

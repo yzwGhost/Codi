@@ -31,6 +31,10 @@ export function createAppStateController(deps: AppStateDeps) {
 
   function onSnapshot(raw: unknown, reconnect: boolean): void {
     const windows = normalizeRateLimits(raw);
+    if (windows.length === 0) {
+      onUnavailable();
+      return;
+    }
     const decreases = diffQuota(state.quotaUnavailable ? null : state.windows, windows, reconnect)
       .map(decrease => ({ ...decrease, eventId: nextEventId++ }));
     state = { ...state, windows, decreases, lastUpdatedAt: Date.now(), quotaUnavailable: false };
@@ -48,6 +52,11 @@ export function createAppStateController(deps: AppStateDeps) {
     emit();
   }
 
+  function onActivityAvailability(available: boolean): void {
+    state = { ...state, activityUnavailable: !available };
+    emit();
+  }
+
   async function refresh(): Promise<void> {
     try {
       await deps.quotaClient.refresh();
@@ -57,7 +66,7 @@ export function createAppStateController(deps: AppStateDeps) {
   }
 
   return {
-    onSnapshot, onUnavailable, onActivity, refresh,
+    onSnapshot, onUnavailable, onActivity, onActivityAvailability, refresh,
     async start(): Promise<void> {
       emit();
       await deps.activityWatcher.start().catch(() => {});

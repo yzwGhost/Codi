@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, Tray } from 'electron';
 import { execFile } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,7 +9,7 @@ import { createActivityWatcher } from './activityWatcher';
 import { createAppStateController } from './appState';
 import { resolveCodexExecutable } from './codexExecutable';
 import { createCodexQuotaClient } from './codexQuotaClient';
-import { clampWindowBounds, type Rectangle } from './windowState';
+import { clampWindowBounds, windowBoundsForQuota, type Rectangle } from './windowState';
 import type { PetViewState } from '../shared/petState';
 
 const size = { width: 520, height: 380 };
@@ -19,6 +20,7 @@ let tray: Tray | null = null;
 let quitting = false;
 let latestState: PetViewState | null = null;
 let controller: ReturnType<typeof createAppStateController> | null = null;
+let saveTimer: NodeJS.Timeout | null = null;
 
 async function savedPosition(): Promise<Rectangle | null> {
   try {
@@ -29,10 +31,29 @@ async function savedPosition(): Promise<Rectangle | null> {
   }
 }
 
-async function savePosition(): Promise<void> {
+function savePosition(): void {
   if (!window || window.isDestroyed()) return;
   const { x, y } = window.getBounds();
-  await writeFile(statePath(), JSON.stringify({ x, y, ...size }), 'utf8').catch(() => {});
+  try { writeFileSync(statePath(), JSON.stringify({ x, y, ...size }), 'utf8'); } catch { /* Restore defaults on the next launch. */ }
+}
+
+function scheduleSavePosition(): void {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveTimer = null; savePosition(); }, 150);
+}
+
+function reclampWindow(): void {
+  if (!window || window.isDestroyed()) return;
+  const current = window.getBounds();
+  const next = clampWindowBounds(current, screen.getAllDisplays().map(display => display.workArea), current);
+  if (next.x !== current.x || next.y !== current.y) window.setBounds(next);
+}
+
+function resizeForQuota(rowCount: number): void {
+  if (!window || window.isDestroyed()) return;
+  const current = window.getBounds();
+  const next = windowBoundsForQuota(current, screen.getAllDisplays().map(display => display.workArea), rowCount);
+  if (next.x !== current.x || next.y !== current.y || next.height !== current.height) window.setBounds(next);
 }
 
 function isDesktopRunning(): Promise<boolean> {
@@ -72,7 +93,7 @@ async function createWindow(): Promise<void> {
     },
   });
   window.setAlwaysOnTop(true, 'floating');
-  window.on('move', () => { void savePosition(); });
+  window.on('move', scheduleSavePosition);
   window.on('close', event => {
     if (!quitting) {
       event.preventDefault();
@@ -81,6 +102,9 @@ async function createWindow(): Promise<void> {
   });
   window.webContents.on('context-menu', () => Menu.buildFromTemplate(menuItems()).popup({ window: window! }));
   window.webContents.on('did-finish-load', () => { if (latestState) window?.webContents.send('pet-state', latestState); });
+  screen.on('display-removed', reclampWindow);
+  screen.on('display-metrics-changed', reclampWindow);
+  screen.on('display-added', reclampWindow);
   await window.loadFile(join(appDir, '..', 'renderer', 'index.html'));
 }
 
@@ -97,21 +121,24 @@ async function startServices(): Promise<void> {
   let onSnapshot: (raw: unknown, reconnect: boolean) => void = () => {};
   let onUnavailable: () => void = () => {};
   let onActivity: (working: boolean) => void = () => {};
+  let onActivityAvailability: (available: boolean) => void = () => {};
   const executable = await resolveCodexExecutable().catch(() => null);
   const quotaClient = executable
     ? createCodexQuotaClient({ executable, onSnapshot: (raw, reconnect) => onSnapshot(raw, reconnect), onUnavailable: () => onUnavailable() })
     : { start: async () => { throw new Error('Codex executable unavailable'); }, refresh: async () => { throw new Error('Codex executable unavailable'); }, stop: async () => {} };
-  const activityWatcher = createActivityWatcher({ codexHome: home, onChange: value => onActivity(value), isDesktopRunning });
+  const activityWatcher = createActivityWatcher({ codexHome: home, onChange: value => onActivity(value), onAvailabilityChange: value => onActivityAvailability(value), isDesktopRunning });
   controller = createAppStateController({
     quotaClient, activityWatcher,
     publish: state => {
       latestState = state;
+      resizeForQuota(state.quotaUnavailable ? 0 : state.windows?.length ?? 0);
       if (window && !window.isDestroyed()) window.webContents.send('pet-state', state);
     },
   });
   onSnapshot = controller.onSnapshot;
   onUnavailable = controller.onUnavailable;
   onActivity = controller.onActivity;
+  onActivityAvailability = controller.onActivityAvailability;
   await controller.start();
 }
 
@@ -128,6 +155,8 @@ if (!app.requestSingleInstanceLock()) {
   }).catch(() => {});
   app.on('before-quit', () => {
     quitting = true;
+    if (saveTimer) clearTimeout(saveTimer);
+    savePosition();
     void controller?.stop();
   });
   app.on('window-all-closed', () => {});

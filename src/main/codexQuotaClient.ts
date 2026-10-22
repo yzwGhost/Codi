@@ -25,6 +25,8 @@ export function createCodexQuotaClient(options: CodexQuotaClientOptions) {
   let reconnectBaseline = false;
   let reconnectTimer: NodeJS.Timeout | null = null;
   let connecting: Promise<void> | null = null;
+  let refreshing: Promise<void> | null = null;
+  let notificationRefreshQueued = false;
   let stdoutBuffer = '';
   let retryAttempt = 0;
 
@@ -78,7 +80,8 @@ export function createCodexQuotaClient(options: CodexQuotaClientOptions) {
       return;
     }
     if (message.method === 'account/rateLimits/updated' && !stopping) {
-      void refresh().catch(() => {});
+      if (refreshing) notificationRefreshQueued = true;
+      else void refresh().catch(() => {});
     }
   }
 
@@ -150,10 +153,20 @@ export function createCodexQuotaClient(options: CodexQuotaClientOptions) {
     }
   }
 
-  async function refresh(): Promise<void> {
-    const result = await request('account/rateLimits/read');
-    options.onSnapshot(result, reconnectBaseline);
-    reconnectBaseline = false;
+  function refresh(): Promise<void> {
+    if (refreshing) return refreshing;
+    refreshing = (async () => {
+      const result = await request('account/rateLimits/read');
+      options.onSnapshot(result, reconnectBaseline);
+      reconnectBaseline = false;
+    })().finally(() => {
+      refreshing = null;
+      if (notificationRefreshQueued && !stopping) {
+        notificationRefreshQueued = false;
+        void refresh().catch(() => {});
+      }
+    });
+    return refreshing;
   }
 
   return {

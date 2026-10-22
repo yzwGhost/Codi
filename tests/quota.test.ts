@@ -19,6 +19,20 @@ describe('normalizeRateLimits', () => {
     ]);
   });
 
+  it('uses map keys when valid buckets omit their optional inner limitId', () => {
+    expect(normalizeRateLimits({ rateLimits: null, rateLimitsByLimitId: {
+      codex: { primary: week, secondary: null },
+      codex_fast: { limitId: null, primary: { ...week, usedPercent: 82 }, secondary: null },
+    } })).toMatchObject([
+      { key: 'codex:primary:10080', limitId: 'codex', remainingPercent: 52 },
+      { key: 'codex_fast:primary:10080', limitId: 'codex_fast', remainingPercent: 18 },
+    ]);
+  });
+
+  it('shows the same bucket and period once even if both slots contain it', () => {
+    expect(normalizeRateLimits({ rateLimits: { limitId: 'codex', primary: week, secondary: week } })).toHaveLength(1);
+  });
+
   it('omits null and malformed windows instead of inventing quota', () => {
     const input = { rateLimitsByLimitId: {
       codex: { limitId: 'codex', primary: null, secondary: { usedPercent: 120, windowDurationMins: 300, resetsAt: 1793000000 } },

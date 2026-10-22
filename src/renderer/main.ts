@@ -49,7 +49,7 @@ export function renderPetView(state: PetViewState, root: HTMLElement): void {
     for (const window of state.windows) {
       const row = element('div', 'quota-row');
       row.dataset.key = window.key;
-      row.append(element('span', 'quota-label', window.label));
+      row.append(element('span', 'quota-label', `${window.limitId} · ${window.label}`));
       const amount = element('strong', 'quota-amount', `${window.remainingPercent}%`);
       row.append(amount);
       const track = element('div', 'quota-track');
@@ -70,6 +70,7 @@ export function renderPetView(state: PetViewState, root: HTMLElement): void {
   if (state.lastUpdatedAt !== null) {
     card.append(element('footer', 'quota-updated', `上次更新 ${new Date(state.lastUpdatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`));
   }
+  if (state.activityUnavailable) card.append(element('p', 'activity-unavailable', '任务状态暂不可用'));
   root.append(card);
 }
 

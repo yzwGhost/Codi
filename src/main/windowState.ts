@@ -19,3 +19,15 @@ export function clampWindowBounds(saved: Rectangle | null, workAreas: Rectangle[
   const chosen = scores[0] ?? { x: primary.x, y: primary.y };
   return { x: chosen.x, y: chosen.y, ...size };
 }
+
+export function windowBoundsForQuota(current: Rectangle, workAreas: Rectangle[], rowCount: number): Rectangle {
+  const area = workAreas.find(candidate =>
+    current.x >= candidate.x && current.x < candidate.x + candidate.width
+  ) ?? workAreas[0] ?? { x: 0, y: 0, width: 1920, height: 1080 };
+  const height = Math.min(Math.max(380, 80 + Math.max(0, rowCount) * 80), area.height - 30);
+  return clampWindowBounds(
+    { x: current.x, y: current.y + current.height - height, width: current.width, height },
+    workAreas,
+    { width: current.width, height },
+  );
+}

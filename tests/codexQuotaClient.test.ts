@@ -87,6 +87,31 @@ it('handshakes before reading quota and handles split replies and a change notif
   await client.stop();
 });
 
+it('serializes overlapping refresh requests so stale replies cannot overwrite newer quota', async () => {
+  let pendingId: unknown;
+  const server = respondingServer((fake, id, count) => {
+    if (count === 1) fake.send({ id, result: { rateLimits: { limitId: 'codex', primary: week } } });
+    else pendingId = id;
+  });
+  const values: number[] = [];
+  const client = createCodexQuotaClient({
+    executable: 'codex.exe', spawnProcess: () => server.asChild(),
+    onSnapshot: raw => values.push((raw as { rateLimits: { primary: { usedPercent: number } } }).rateLimits.primary.usedPercent),
+    onUnavailable: () => {},
+  });
+  try {
+    await client.start();
+    const first = client.refresh();
+    const second = client.refresh();
+    expect(server.requests.filter(request => request.method === 'account/rateLimits/read')).toHaveLength(2);
+    server.send({ id: pendingId, result: { rateLimits: { limitId: 'codex', primary: { ...week, usedPercent: 49 } } } });
+    await Promise.all([first, second]);
+    expect(values).toEqual([48, 49]);
+  } finally {
+    await client.stop();
+  }
+});
+
 it('rejects a pending request on exit and reconnects without retaining stale results', async () => {
   let firstQuota = true;
   const first = respondingServer((fake, id) => {

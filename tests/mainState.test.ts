@@ -61,3 +61,24 @@ it('keeps last success time on failure and resets the animation baseline on reco
   expect(f.calls).toContain('activity-stop');
   expect(f.calls).toContain('quota-stop');
 });
+
+it('treats a malformed quota snapshot as unavailable instead of showing an empty card', async () => {
+  const f = fixture();
+  await f.controller.start();
+  f.controller.onSnapshot(raw(40), false);
+  const last = f.published.at(-1)?.lastUpdatedAt;
+  f.controller.onSnapshot({ rateLimitsByLimitId: { codex: { primary: { usedPercent: 'bad' } } } }, false);
+  expect(f.published.at(-1)?.quotaUnavailable).toBe(true);
+  expect(f.published.at(-1)?.lastUpdatedAt).toBe(last);
+  await f.controller.stop();
+});
+
+it('reports task-index failure separately from quota availability', async () => {
+  const f = fixture();
+  await f.controller.start();
+  f.controller.onSnapshot(raw(40), false);
+  f.controller.onActivityAvailability(false);
+  expect(f.published.at(-1)?.activityUnavailable).toBe(true);
+  expect(f.published.at(-1)?.quotaUnavailable).toBe(false);
+  await f.controller.stop();
+});

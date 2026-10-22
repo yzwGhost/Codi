@@ -18,6 +18,7 @@ it('shows each real quota window, percent, and local reset time', () => {
   expect(document.body.textContent).toContain('18%');
   expect(document.body.textContent).toContain('5 小时');
   expect(document.body.textContent).toContain('7 天');
+  expect(document.body.textContent).toContain('codex · 7 天');
   expect(document.body.textContent).toContain('重置');
 });
 
@@ -26,6 +27,12 @@ it('shows only returned windows and an unavailable message with last success tim
   expect(document.querySelectorAll('.quota-row')).toHaveLength(0);
   expect(document.body.textContent).toContain('额度暂不可用');
   expect(document.body.textContent).toContain('上次更新');
+});
+
+it('shows a task-state diagnostic while keeping quota visible', () => {
+  renderPetView(state({ activityUnavailable: true }), document.getElementById('app')!);
+  expect(document.body.textContent).toContain('任务状态暂不可用');
+  expect(document.body.textContent).toContain('70%');
 });
 
 it.each(['working', 'idle', 'low'] as const)('selects the %s image', pet => {

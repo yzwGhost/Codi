@@ -3,12 +3,12 @@
 html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
 #app { position: relative; user-select: none; -webkit-app-region: drag; }
 .pet-image { position: absolute; left: 0; bottom: 0; width: 360px; height: 330px; object-fit: contain; object-position: left bottom; pointer-events: none; }
-.quota-card { position: absolute; top: 24px; right: 10px; width: 175px; padding: 12px; border: 1px solid rgba(255,255,255,.85); border-radius: 17px; background: rgba(248,251,255,.92); box-shadow: 0 8px 30px rgba(13,24,49,.2); color: #1d2942; -webkit-app-region: no-drag; }
+.quota-card { position: absolute; top: 24px; right: 10px; width: 175px; max-height: calc(100% - 34px); overflow-y: auto; padding: 12px; border: 1px solid rgba(255,255,255,.85); border-radius: 17px; background: rgba(248,251,255,.92); box-shadow: 0 8px 30px rgba(13,24,49,.2); color: #1d2942; -webkit-app-region: no-drag; }
 .quota-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .quota-title { font-size: 13px; font-weight: 800; }
 .refresh-button { border: 0; background: transparent; color: #536984; font-size: 19px; line-height: 18px; cursor: pointer; }
 .quota-row { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 3px 4px; padding: 8px 0; border-top: 1px solid #e4eaf3; }
-.quota-label { font-size: 12px; color: #617089; }
+.quota-label { font-size: 12px; color: #617089; overflow-wrap: anywhere; }
 .quota-amount { font-size: 15px; color: #1f5678; }
 .quota-track { grid-column: 1 / 3; height: 5px; border-radius: 10px; background: #dce7ef; overflow: hidden; }
 .quota-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg,#63b6ca,#3b89b5); }
@@ -17,4 +17,5 @@ html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; backg
 .quota-decrease { position: absolute; right: 0; top: -2px; color: #e54c69; font-size: 18px; font-weight: 900; pointer-events: none; animation: float-away 1.3s ease-out forwards; }
 .quota-unavailable { color: #65758a; font-size: 12px; }
 .quota-updated { border-top: 1px solid #e4eaf3; padding-top: 7px; color: #8995a4; font-size: 10px; }
+.activity-unavailable { margin: 6px 0 0; color: #9b675b; font-size: 10px; }
 @keyframes float-away { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-32px) scale(1.15); } }

@@ -88,8 +88,10 @@ it('handles absent databases without publishing false activity', async () => {
   const home = await mkdtemp(join(tmpdir(), 'pet absent '));
   roots.push(home);
   const changes: boolean[] = [];
-  const watcher = createActivityWatcher({ codexHome: home, onChange: value => changes.push(value), isDesktopRunning: async () => true, scanIntervalMs: 20 });
+  const availability: boolean[] = [];
+  const watcher = createActivityWatcher({ codexHome: home, onChange: value => changes.push(value), onAvailabilityChange: value => availability.push(value), isDesktopRunning: async () => true, scanIntervalMs: 20 });
   await watcher.start();
   expect(changes).toEqual([]);
+  expect(availability).toEqual([false]);
   await watcher.stop();
 });
