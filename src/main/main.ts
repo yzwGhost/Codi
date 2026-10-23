@@ -10,6 +10,7 @@ import { createAppStateController } from './appState';
 import { resolveCodexExecutable } from './codexExecutable';
 import { createCodexQuotaClient } from './codexQuotaClient';
 import { createPetMenuItems } from './petMenu';
+import { attachPetContextMenu } from './petInteractions';
 import { parsePetSettings, type PetScale } from './petSettings';
 import { clampWindowBounds, petWindowSize, windowBoundsForQuota } from './windowState';
 import type { PetViewState } from '../shared/petState';
@@ -116,6 +117,7 @@ async function createWindow(): Promise<void> {
       window?.hide();
     }
   });
+  attachPetContextMenu(window, () => Menu.buildFromTemplate(menuItems()).popup({ window: window! }));
   window.webContents.on('did-finish-load', sendState);
   screen.on('display-removed', reclampWindow);
   screen.on('display-metrics-changed', reclampWindow);
@@ -164,15 +166,6 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     ipcMain.handle('refresh-quota', () => controller?.refresh());
     ipcMain.handle('set-autostart', (_event, enabled: boolean) => app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }));
-    ipcMain.handle('show-pet-menu', event => {
-      if (window && !window.isDestroyed() && event.sender === window.webContents) Menu.buildFromTemplate(menuItems()).popup({ window });
-    });
-    ipcMain.on('move-pet', (event, dx: number, dy: number) => {
-      if (!window || window.isDestroyed() || event.sender !== window.webContents || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
-      const current = window.getBounds();
-      const next = clampWindowBounds({ ...current, x: current.x + dx, y: current.y + dy }, screen.getAllDisplays().map(display => display.workArea), current);
-      window.setPosition(next.x, next.y);
-    });
     await createWindow();
     createTray();
     await startServices();

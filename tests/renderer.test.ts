@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest';
+import { beforeEach, expect, it } from 'vitest';
 import { renderPetView } from '../src/renderer/main';
 import type { PetViewState } from '../src/shared/petState';
 
@@ -35,32 +35,6 @@ it('shows a task-state diagnostic while keeping quota visible', () => {
   renderPetView(state({ activityUnavailable: true }), document.getElementById('app')!);
   expect(document.querySelector('.quota-card')?.getAttribute('title')).toContain('任务状态暂不可用');
   expect(document.body.textContent).toContain('70%');
-});
-
-it('opens the desktop menu only when the character image is right-clicked', () => {
-  const showPetMenu = vi.fn();
-  window.petBridge = { onState: vi.fn(), refreshQuota: vi.fn(), setAutostart: vi.fn(), showPetMenu, movePet: vi.fn() };
-  const root = document.getElementById('app')!;
-  renderPetView(state(), root);
-  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-  document.querySelector('.pet-image')!.dispatchEvent(event);
-  expect(event.defaultPrevented).toBe(true);
-  expect(showPetMenu).toHaveBeenCalledOnce();
-  root.querySelector('.quota-card')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
-  expect(showPetMenu).toHaveBeenCalledOnce();
-});
-
-it('drags the pet from the image with the left pointer button', () => {
-  const movePet = vi.fn();
-  window.petBridge = { onState: vi.fn(), refreshQuota: vi.fn(), setAutostart: vi.fn(), showPetMenu: vi.fn(), movePet };
-  renderPetView(state(), document.getElementById('app')!);
-  const image = document.querySelector('.pet-image')!;
-  image.dispatchEvent(new MouseEvent('pointerdown', { button: 0, screenX: 100, screenY: 100 }));
-  image.dispatchEvent(new MouseEvent('pointermove', { screenX: 120, screenY: 110 }));
-  expect(movePet).toHaveBeenCalledWith(20, 10);
-  image.dispatchEvent(new MouseEvent('pointerup'));
-  image.dispatchEvent(new MouseEvent('pointermove', { screenX: 135, screenY: 120 }));
-  expect(movePet).toHaveBeenCalledTimes(1);
 });
 
 it('applies the selected size to the character and quota strip together', () => {

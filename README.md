@@ -4,16 +4,16 @@ Windows 桌宠，使用本机 Codex 登录状态显示 ChatGPT Codex 使用额�
 
 ## 安装与运行
 
-运行 `release/codex-quota-pet-0.1.0-setup.exe` 安装。首次使用前先在这台电脑上登录 Codex Desktop。启动后桌宠显示在主屏幕右下角；拖动角色图片可调整位置。右键角色图片或托盘图标可刷新额度、设置开机启动、调整桌宠大小（75%／100%／125%／150%）和退出。大小与位置会记住；关闭窗口会隐藏到托盘。
-
-若从源码运行，使用 Node.js 22：
+首次使用前先在这台电脑上登录 Codex Desktop。使用 Node.js 22 从源码运行桌宠：
 
 ```powershell
 npm install
 npm run dev
 ```
 
-`npm test -- --run` 运行测试，`npm run dist:win` 生成 Windows 安装包。
+启动后桌宠显示在主屏幕右下角；拖动角色图片可调整位置。右键角色图片或托盘图标可刷新额度、设置开机启动、调整桌宠大小（75%／100%／125%／150%）和退出。大小与位置会记住；关闭窗口会隐藏到托盘。
+
+`npm test -- --run` 运行测试，`npm run dist:win` 生成 Windows 安装包。当前机器的应用程序控制策略拦截新生成的 EXE；打包程序需要获得系统允许后才能直接运行。
 
 ## 显示规则
 

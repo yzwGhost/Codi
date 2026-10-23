@@ -1,9 +1,8 @@
 :root { color-scheme: light; font-family: "Microsoft YaHei", "Segoe UI", sans-serif; }
 * { box-sizing: border-box; }
 html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-#app { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: calc(2px * var(--pet-scale, 1)); padding-bottom: calc(18px * var(--pet-scale, 1)); user-select: none; -webkit-app-region: drag; }
-.pet-image { width: calc(390px * var(--pet-scale, 1)); height: calc(292px * var(--pet-scale, 1)); object-fit: contain; object-position: center bottom; cursor: grab; -webkit-app-region: no-drag; }
-.pet-image.dragging { cursor: grabbing; }
+#app { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: calc(2px * var(--pet-scale, 1)); padding-bottom: calc(18px * var(--pet-scale, 1)); user-select: none; }
+.pet-image { width: calc(390px * var(--pet-scale, 1)); height: calc(292px * var(--pet-scale, 1)); object-fit: contain; object-position: center bottom; -webkit-app-region: drag; }
 .quota-card { width: calc(295px * var(--pet-scale, 1)); min-height: calc(28px * var(--pet-scale, 1)); flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: calc(7px * var(--pet-scale, 1)); padding: calc(8px * var(--pet-scale, 1)) calc(12px * var(--pet-scale, 1)); border-radius: calc(16px * var(--pet-scale, 1)); background: rgba(21,32,54,.88); box-shadow: 0 7px 22px rgba(13,24,49,.25); color: white; -webkit-app-region: no-drag; }
 .quota-row { position: relative; display: flex; align-items: center; gap: calc(10px * var(--pet-scale, 1)); min-height: calc(12px * var(--pet-scale, 1)); }
 .quota-track { flex: 1; height: calc(7px * var(--pet-scale, 1)); border-radius: 20px; background: rgba(205,221,235,.3); overflow: hidden; }

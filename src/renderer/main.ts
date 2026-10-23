@@ -30,27 +30,6 @@ export function renderPetView(state: PetViewState, root: HTMLElement): void {
   pet.src = images[state.pet];
   pet.alt = state.pet === 'working' ? '工作中的桌宠' : state.pet === 'low' ? '额度快用完的桌宠' : '休息中的桌宠';
   pet.draggable = false;
-  let dragPoint: { x: number; y: number } | null = null;
-  pet.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
-    dragPoint = { x: event.screenX, y: event.screenY };
-    pet.setPointerCapture?.(event.pointerId);
-    pet.classList.add('dragging');
-  });
-  pet.addEventListener('pointermove', event => {
-    if (!dragPoint) return;
-    const dx = event.screenX - dragPoint.x;
-    const dy = event.screenY - dragPoint.y;
-    dragPoint = { x: event.screenX, y: event.screenY };
-    if (dx || dy) window.petBridge?.movePet(dx, dy);
-  });
-  const endDrag = () => { dragPoint = null; pet.classList.remove('dragging'); };
-  pet.addEventListener('pointerup', endDrag);
-  pet.addEventListener('pointercancel', endDrag);
-  pet.addEventListener('contextmenu', event => {
-    event.preventDefault();
-    void window.petBridge?.showPetMenu();
-  });
   root.append(pet);
 
   const card = element('section', 'quota-card');
@@ -93,8 +72,6 @@ declare global {
       onState(callback: (state: PetViewState) => void): () => void;
       refreshQuota(): Promise<void>;
       setAutostart(enabled: boolean): Promise<void>;
-      showPetMenu(): Promise<void>;
-      movePet(dx: number, dy: number): void;
     };
   }
 }
