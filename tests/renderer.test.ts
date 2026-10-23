@@ -48,13 +48,20 @@ it.each(['working', 'idle', 'low'] as const)('selects the %s image', pet => {
   expect((document.querySelector('.pet-image') as HTMLImageElement).src).toContain(`pet-${pet}.png`);
 });
 
-it('animates the matching decrease exactly once for the same event ID', () => {
+it('keeps a decrease visible through unrelated state updates until its animation ends', () => {
   const root = document.getElementById('app')!;
   const changed = state({ windows: [windowA, windowB], decreases: [{ key: windowB.key, amountPercent: 2.5, eventId: 8 }] });
   renderPetView(changed, root);
   expect(document.querySelectorAll('.quota-decrease')).toHaveLength(1);
   expect(document.querySelector('.quota-decrease')?.textContent).toBe('-2.5%');
   expect(document.querySelector('[data-key="codex:secondary:10080"] .quota-decrease')).not.toBeNull();
+  const floater = document.querySelector('.quota-decrease')!;
+  renderPetView(state({ windows: [windowA, windowB], pet: 'idle' }), root);
+  expect(document.querySelector('.quota-decrease')).toBe(floater);
+  renderPetView(changed, root);
+  expect(document.querySelectorAll('.quota-decrease')).toHaveLength(1);
+  floater.dispatchEvent(new Event('animationend'));
+  expect(document.querySelectorAll('.quota-decrease')).toHaveLength(0);
   renderPetView(changed, root);
   expect(document.querySelectorAll('.quota-decrease')).toHaveLength(0);
 });
