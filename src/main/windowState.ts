@@ -20,6 +20,21 @@ export function clampWindowBounds(saved: Rectangle | null, workAreas: Rectangle[
   return { x: chosen.x, y: chosen.y, ...size };
 }
 
+export function snapWindowBounds(bounds: Rectangle, workArea: Rectangle, threshold = 24): Rectangle {
+  const snapAxis = (value: number, near: number, far: number): number => {
+    const nearDistance = Math.abs(value - near);
+    const farDistance = Math.abs(value - far);
+    if (nearDistance <= threshold && nearDistance <= farDistance) return near;
+    if (farDistance <= threshold) return far;
+    return value;
+  };
+  return {
+    ...bounds,
+    x: snapAxis(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
+    y: snapAxis(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
+  };
+}
+
 export function petWindowSize(rowCount: number, scale: number): WindowSize {
   return {
     width: Math.round(420 * scale),

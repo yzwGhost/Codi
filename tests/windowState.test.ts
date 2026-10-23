@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { clampWindowBounds, petWindowSize, windowBoundsForQuota } from '../src/main/windowState';
+import { clampWindowBounds, petWindowSize, snapWindowBounds, windowBoundsForQuota } from '../src/main/windowState';
 
 const primary = { x: 0, y: 0, width: 1920, height: 1040 };
 const secondary = { x: -1600, y: 0, width: 1600, height: 900 };
@@ -30,4 +30,20 @@ it('resizes around the bottom edge and stays within the work area', () => {
   const many = windowBoundsForQuota({ x: 1380, y: 640, ...size }, [primary], 30, 1.5);
   expect(many.height).toBeLessThanOrEqual(primary.height - 30);
   expect(many.y).toBeGreaterThanOrEqual(primary.y);
+});
+
+it('snaps each nearby edge to the work area after a drag', () => {
+  const pet = { x: 18, y: 20, width: 420, height: 348 };
+  expect(snapWindowBounds(pet, primary)).toEqual({ ...pet, x: 0, y: 0 });
+  expect(snapWindowBounds({ ...pet, x: 1478, y: 670 }, primary)).toEqual({ ...pet, x: 1500, y: 692 });
+});
+
+it('leaves the window where it was dropped when every edge is farther than the threshold', () => {
+  const pet = { x: 30, y: 30, width: 420, height: 348 };
+  expect(snapWindowBounds(pet, primary)).toEqual(pet);
+});
+
+it('snaps to negative-coordinate display edges and accepts a small overshoot', () => {
+  const pet = { x: -443, y: -12, width: 420, height: 348 };
+  expect(snapWindowBounds(pet, secondary)).toEqual({ ...pet, x: -420, y: 0 });
 });

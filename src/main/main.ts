@@ -12,6 +12,7 @@ import { createCodexQuotaClient } from './codexQuotaClient';
 import { createPetMenuItems } from './petMenu';
 import { attachPetContextMenu } from './petInteractions';
 import { parsePetSettings, type PetScale } from './petSettings';
+import { attachEdgeSnapping } from './windowSnapping';
 import { clampWindowBounds, petWindowSize, windowBoundsForQuota } from './windowState';
 import type { PetViewState } from '../shared/petState';
 
@@ -111,6 +112,7 @@ async function createWindow(): Promise<void> {
   });
   window.setAlwaysOnTop(true, 'floating');
   window.on('move', scheduleSavePosition);
+  attachEdgeSnapping(window, bounds => screen.getDisplayMatching(bounds).workArea);
   window.on('close', event => {
     if (!quitting) {
       event.preventDefault();
