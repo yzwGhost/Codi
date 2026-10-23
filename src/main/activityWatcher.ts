@@ -5,7 +5,7 @@ export type ActivityWatcherOptions = {
   codexHome: string;
   onChange: (isWorking: boolean) => void;
   onAvailabilityChange?: (available: boolean) => void;
-  isDesktopRunning: () => Promise<boolean>;
+  isDesktopRunning: () => Promise<boolean | null>;
   scanIntervalMs?: number;
 };
 
@@ -41,15 +41,17 @@ export function createActivityWatcher(options: ActivityWatcherOptions) {
   let wasAvailable: boolean | null = null;
 
   async function scan(): Promise<void> {
-    const running = await options.isDesktopRunning().catch(() => false);
+    const running = await options.isDesktopRunning().catch(() => null);
     if (stopped) return;
-    const result = running ? activeDesktopTurn(options.codexHome, Date.now()) : { working: false, available: true };
+    const result = running === null
+      ? { working: wasWorking, available: false }
+      : running ? activeDesktopTurn(options.codexHome, Date.now()) : { working: false, available: true };
     if (result.available !== wasAvailable) {
       wasAvailable = result.available;
       options.onAvailabilityChange?.(result.available);
     }
     const working = result.working;
-    if (working !== wasWorking) {
+    if (result.available && working !== wasWorking) {
       wasWorking = working;
       options.onChange(working);
     }

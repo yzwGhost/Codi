@@ -84,6 +84,66 @@ it('returns to idle when Desktop exits and avoids duplicate transitions', async 
   }
 });
 
+it('keeps the working image while the process check fails, then returns to idle on a confirmed exit', async () => {
+  const db = await fixture();
+  db.addThread('desktop', 'Codex Desktop');
+  db.addTurn('turn', 'desktop');
+  let processState: 'running' | 'error' | 'stopped' = 'running';
+  const changes: boolean[] = [];
+  const availability: boolean[] = [];
+  const watcher = createActivityWatcher({
+    codexHome: db.home,
+    onChange: value => changes.push(value),
+    onAvailabilityChange: value => availability.push(value),
+    isDesktopRunning: async () => {
+      if (processState === 'error') return null;
+      return processState === 'running';
+    },
+    scanIntervalMs: 20,
+  });
+  try {
+    await watcher.start();
+    expect(changes).toEqual([true]);
+    processState = 'error';
+    await waitFor(() => availability.at(-1) === false);
+    expect(changes).toEqual([true]);
+    processState = 'stopped';
+    await waitFor(() => changes.length === 2);
+    expect(changes).toEqual([true, false]);
+    expect(availability.at(-1)).toBe(true);
+  } finally {
+    await watcher.stop();
+    db.threads.close();
+    db.turns.close();
+  }
+});
+
+it('keeps the working image while the task index is temporarily unreadable', async () => {
+  const db = await fixture();
+  db.addThread('desktop', 'Codex Desktop');
+  db.addTurn('turn', 'desktop');
+  const changes: boolean[] = [];
+  const availability: boolean[] = [];
+  const watcher = createActivityWatcher({
+    codexHome: db.home,
+    onChange: value => changes.push(value),
+    onAvailabilityChange: value => availability.push(value),
+    isDesktopRunning: async () => true,
+    scanIntervalMs: 20,
+  });
+  try {
+    await watcher.start();
+    expect(changes).toEqual([true]);
+    db.turns.exec('DROP TABLE thread_turns');
+    await waitFor(() => availability.at(-1) === false);
+    expect(changes).toEqual([true]);
+  } finally {
+    await watcher.stop();
+    db.threads.close();
+    db.turns.close();
+  }
+});
+
 it('handles absent databases without publishing false activity', async () => {
   const home = await mkdtemp(join(tmpdir(), 'pet absent '));
   roots.push(home);

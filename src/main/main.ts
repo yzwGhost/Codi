@@ -69,10 +69,10 @@ function setPetScale(scale: PetScale): void {
   scheduleSavePosition();
 }
 
-function isDesktopRunning(): Promise<boolean> {
+function isDesktopRunning(): Promise<boolean | null> {
   return new Promise(resolve => {
     execFile('tasklist.exe', ['/FI', 'IMAGENAME eq ChatGPT.exe', '/FO', 'CSV', '/NH'], { windowsHide: true, timeout: 3_000 }, (error, stdout) => {
-      resolve(!error && stdout.split(/\r?\n/).some(line => /^"ChatGPT\.exe",/i.test(line.trim())));
+      resolve(error ? null : stdout.split(/\r?\n/).some(line => /^"ChatGPT\.exe",/i.test(line.trim())));
     });
   });
 }
